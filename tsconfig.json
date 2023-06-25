@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {    
+    "target": "es2017",                                  
+    "module": "CommonJS",        
+    "moduleResolution": "node",                        
+    "esModuleInterop": true,                             
+    "forceConsistentCasingInFileNames": true,            
+    "strict": true,                                      
+    "skipLibCheck": true,
+    "outDir": "dist",                                 
+  },
+  "include": ["app/**/*.ts"]
+}
