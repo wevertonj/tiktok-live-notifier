@@ -1,4 +1,4 @@
-import Logger from "../logs/logger";
+import Logger from "../utils/logger";
 
 require('dotenv').config();
 const { WebcastPushConnection } = require('tiktok-live-connector');
@@ -31,10 +31,6 @@ class TikTokService {
     const resetColor = '\x1b[0m';
     const time = this.getCurrentTimeFormatted();
 
-    if (this.debug) {
-      console.log(`${color}[${time}] Initial Status: ${this.status}${resetColor}`);
-    }
-
     switch (this.status) {
       case 'offline':
         const connect = await this.connectToChat();
@@ -56,8 +52,8 @@ class TikTokService {
         break;
     }
 
-    if (this.debug) {
-      console.log(`${color}[${time}] Final Status: ${this.status}${resetColor}`);
+    if (this.debug && this.status !== 'connected') {
+      console.log(`${color}[${time}] Status: ${this.status}${resetColor}`);
     }
   }
 
@@ -164,11 +160,11 @@ class TikTokService {
       this.status = 'connected';
 
       if (this.debug) {
-        console.log('Connected!', state);
+        console.info(`Connected to roomId ${state.roomId}`);
       }
 
       if (this.log) {
-        this.logger.log('Connected!');
+        console.info(`Connected to roomId ${state.roomId}`);
       }
     });
   }

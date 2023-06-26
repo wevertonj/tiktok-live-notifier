@@ -1,4 +1,4 @@
-import Logger from './logs/logger';
+import Logger from './utils/logger';
 import TikTokService from './services/tiktokService';
 require('dotenv').config();
 
