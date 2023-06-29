@@ -8,6 +8,7 @@ class TikTokService {
   private tiktokLiveConnection: typeof WebcastPushConnection;
   private username: string;
   private status: String = 'offline';
+  private viewers: number = 0;
   private debug: boolean = false;
   private log: boolean = false;
   private logger: Logger = new Logger();
@@ -24,6 +25,8 @@ class TikTokService {
     this.tiktokLiveConnection = new WebcastPushConnection(this.username);
     this.connected();
     this.disconnected();
+    this.viewerCount();
+    this.error();
   }
 
   async run(): Promise<void> {
@@ -33,14 +36,24 @@ class TikTokService {
 
     switch (this.status) {
       case 'offline':
-        const connect = await this.connectToChat();
-        if (connect && this.debug) {
-          this.startChatListener();
-        } else {
-          this.status = 'ended';
+        await this.roomInfo();
+
+        if (this.viewers > 0) {
+          const connect = await this.connectToChat();
+
+          if (connect && this.debug) {
+            this.startChatListener();
+          }
+
+          if (this.debug && this.status) {
+            console.log('Viewers: ', this.viewers);
+          }
         }
         break;
       case 'connected':
+        if (this.viewers === 0) {
+          this.status = 'offline';
+        }
         break;
       case 'disconnected':
         sleep.sleep(1800);
@@ -62,8 +75,7 @@ class TikTokService {
       const state = await this.tiktokLiveConnection.connect();
 
       if (this.debug) {
-        console.info(`Connected to roomId ${state.roomId}`);
-        await this.roomInfo();
+        await this.roomInfo(true);
       }
 
       if (this.log) {
@@ -85,12 +97,14 @@ class TikTokService {
     }
   }
 
-  async roomInfo(): Promise<any> {
+  async roomInfo(showIntro = false): Promise<any> {
     try {
+      const currentTime = Math.floor(Date.now() / 1000);
       const roomInfo = await this.tiktokLiveConnection.getRoomInfo();
+      this.viewers = roomInfo.user_count;
+      const startedLessThan5MinutesAgo = currentTime - roomInfo.create_time < 300;
 
-      if (this.debug) {
-        console.log(roomInfo.create_time);
+      if ((showIntro || startedLessThan5MinutesAgo) && this.debug) {
         const createDateTime = new Date(roomInfo.create_time * 1000);
         const day = createDateTime.getDate().toString().padStart(2, '0');
         const month = (createDateTime.getMonth() + 1).toString().padStart(2, '0');
@@ -105,12 +119,13 @@ class TikTokService {
         const yellowColor = '\x1b[33m';
         const resetColor = '\x1b[0m';
 
-        console.log(`\n${cyanColor}Stream started timestamp: ${formattedDateTime}, Streamer bio: ${roomInfo.owner.bio_description}${resetColor}`);
-        console.log(`${yellowColor}HLS URL: ${roomInfo.stream_url.hls_pull_url}${resetColor}\n`);
+        console.log(`\n${cyanColor}Stream started at: ${formattedDateTime}, Streamer bio: ${roomInfo.owner.bio_description}${resetColor}`);
+        console.log(`${yellowColor}HLS URL: ${roomInfo.stream_url.hls_pull_url}${resetColor}`);
+        console.log(`Viewers: ${roomInfo.user_count}\n`);
 
       }
 
-      if (this.log) {
+      if ((showIntro || startedLessThan5MinutesAgo) && this.log) {
         this.logger.log(`Stream started timestamp: ${roomInfo.create_time}`);
         this.logger.log(`HLS URL: ${roomInfo.stream_url.hls_pull_url}`);
       }
@@ -179,6 +194,24 @@ class TikTokService {
 
       if (this.log) {
         this.logger.log('Disconnected!');
+      }
+    });
+  }
+
+  private viewerCount() {
+    this.tiktokLiveConnection.on('roomUser', (data: { viewerCount: number; }) => {
+      this.viewers = data.viewerCount;
+    });
+  }
+
+  private error() {
+    this.tiktokLiveConnection.on('error', (err: Error) => {
+      if (this.debug) {
+        console.error(err);
+      }
+
+      if (this.log) {
+        this.logger.log(err);
       }
     });
   }
