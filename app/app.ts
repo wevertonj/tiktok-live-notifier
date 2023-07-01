@@ -1,6 +1,7 @@
 import Logger from './utils/logger';
 import TikTokService from './services/tiktokService';
 import ILogger from './interfaces/iLogger';
+import * as Sentry from "@sentry/node";
 
 class App {
   private enableLogs: boolean;
@@ -10,6 +11,8 @@ class App {
   private defaultInterval: number;
   private minInterval: number;
   private maxInterval: number;
+  private useSentry: boolean;
+  private sentryDsn: string;
 
   private tikTokService: TikTokService;
   private logger: ILogger;
@@ -22,15 +25,25 @@ class App {
     this.username = process.env.TIKTOK_USERNAME || '';
     this.useVariableInterval = process.env.USE_VARIABLE_INTERVAL === 'true';
     this.defaultInterval = process.env.DEFAULT_INTERVAL_IN_SECONDS ? parseInt(process.env.DEFAULT_INTERVAL_IN_SECONDS) * 1000 : 60000;
-
     this.minInterval = process.env.MIN_INTERVAL_IN_SECONDS ? parseInt(process.env.MIN_INTERVAL_IN_SECONDS) * 1000 : 60000;
     this.maxInterval = process.env.MAX_INTERVAL_IN_SECONDS ? parseInt(process.env.MAX_INTERVAL_IN_SECONDS) * 1000 : 90000;
+    this.useSentry = process.env.USE_SENTRY === 'true';
+    this.sentryDsn = process.env.SENTRY_DSN || '';
 
     if (this.username === '') {
       throw new Error('Please set TIKTOK_USERNAME environment variable');
     }
 
-    this.logger = new Logger();
+    if (this.useSentry && this.sentryDsn === '') {
+      throw new Error('Please set SENTRY_DSN environment variable');
+    } else if (this.useSentry) {
+      Sentry.init({ dsn: this.sentryDsn });
+      this.logger = new Logger(Sentry);
+    } else {
+      this.logger = new Logger();
+    }
+
+
     this.tikTokService = new TikTokService(this.username, this.debug, this.enableLogs, this.logger);
     
     this.runTikTokService((error?: Error) => {

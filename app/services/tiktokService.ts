@@ -1,5 +1,4 @@
 import ILogger from "../interfaces/iLogger";
-import Logger from "../utils/logger";
 
 const { WebcastPushConnection } = require('tiktok-live-connector');
 const sleep = require('sleep');
@@ -82,13 +81,13 @@ class TikTokService {
 
       return true;
     } catch (err: any) {
-      if (err.message.includes('LIVE has ended')) {
+      if (!err.message.includes('LIVE has ended')) {
         if (this.debug) {
           console.log('Stream has ended');
         }
 
         if (this.log) {
-          this.logger.log('Stream has ended');
+          this.logger.log(err);
         }
       }
 
@@ -131,7 +130,7 @@ class TikTokService {
 
       return roomInfo;
     } catch (err: any) {
-      if (err.message !== 'LIVE has ended' || this.debug) {
+      if (err.message.includes('LIVE has ended') || this.debug) {
         console.error(err);
       }
 

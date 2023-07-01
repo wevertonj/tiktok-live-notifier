@@ -4,8 +4,15 @@ import ILogger from '../interfaces/iLogger';
 
 class Logger implements ILogger {
   private logsDir: string;
+  private sentry: typeof import("@sentry/node") | false;
 
-  constructor() {
+  constructor(sentry?: typeof import("@sentry/node")) {
+    if (sentry) {
+      this.sentry = sentry;
+    } else {
+      this.sentry = false;
+    }
+
     this.logsDir = path.join(__dirname, '../logs');
     if (!fs.existsSync(this.logsDir)) {
       fs.mkdirSync(this.logsDir);
@@ -36,7 +43,15 @@ class Logger implements ILogger {
         console.error('Error while saving the log:', error);
       }
     });
+
+    this.sendToMonitoring(message);
   }  
+
+  public sendToMonitoring(message: string | Error): void {
+    if (this.sentry) {
+      this.sentry.captureException(message);
+    }
+  }
 }
 
 export default Logger;
