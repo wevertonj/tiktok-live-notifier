@@ -34,6 +34,8 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     ```shell
     DEBUG=
     ENABLE_LOGS=
+    USE_SENTRY=
+    SENTRY_DSN=
     TIKTOK_USERNAME=
     USE_VARIABLE_INTERVAL=
     DEFAULT_INTERVAL_IN_SECONDS=
@@ -45,6 +47,8 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     | --- | --- | --- |
     | `DEBUG` | Set to `true` to enable debug mode, or leave it empty to disable debug mode. | `false` |
     | `ENABLE_LOGS` | Set to `true` to enable logging, or leave it empty to disable logging. | `false` |
+    | `USE_SENTRY` | Set to `true` to enable Sentry, or leave it empty to disable Sentry. `ENABLE_LOGS` must be set to `true` to work. | `false` |
+    | `SENTRY_DSN` | Your Sentry DSN. | Empty |
     | `TIKTOK_USERNAME` | Your TikTok username. | Empty |
     | `USE_VARIABLE_INTERVAL` | Set to `true` to use a variable interval, or leave it empty to use a fixed interval. | `false` |
     | `DEFAULT_INTERVAL_IN_SECONDS` | The default interval in seconds to check for live streams. | 60 |
