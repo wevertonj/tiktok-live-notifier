@@ -1,6 +1,6 @@
+import ILogger from "../interfaces/iLogger";
 import Logger from "../utils/logger";
 
-require('dotenv').config();
 const { WebcastPushConnection } = require('tiktok-live-connector');
 const sleep = require('sleep');
 
@@ -11,16 +11,13 @@ class TikTokService {
   private viewers: number = 0;
   private debug: boolean = false;
   private log: boolean = false;
-  private logger: Logger = new Logger();
+  private logger: ILogger;
 
-  constructor() {
-    this.username = process.env.TIKTOK_USERNAME || '';
-    this.debug = process.env.DEBUG === 'true';
-    this.log = process.env.ENABLE_LOGS === 'true';
-
-    if (this.username === '') {
-      throw new Error('Please set TIKTOK_USERNAME environment variable');
-    }
+  constructor(username: string, debug: boolean, log: boolean, logger: ILogger) {
+    this.username = username;
+    this.debug = debug;
+    this.log = log;
+    this.logger = logger;
 
     this.tiktokLiveConnection = new WebcastPushConnection(this.username);
     this.connected();
@@ -38,7 +35,7 @@ class TikTokService {
       case 'offline':
         await this.roomInfo();
 
-        if (this.viewers > 0) {
+        if (this.viewers > 1) {
           const connect = await this.connectToChat();
 
           if (connect && this.debug) {
@@ -85,12 +82,14 @@ class TikTokService {
 
       return true;
     } catch (err: any) {
-      if (err.message !== 'LIVE has ended' || this.debug) {
-        console.error(err);
-      }
+      if (err.message.includes('LIVE has ended')) {
+        if (this.debug) {
+          console.log('Stream has ended');
+        }
 
-      if (this.log) {
-        this.logger.log(err);
+        if (this.log) {
+          this.logger.log('Stream has ended');
+        }
       }
 
       return false;

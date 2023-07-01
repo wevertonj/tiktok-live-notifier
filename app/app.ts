@@ -1,63 +1,83 @@
 import Logger from './utils/logger';
 import TikTokService from './services/tiktokService';
-require('dotenv').config();
+import ILogger from './interfaces/iLogger';
 
-const enableLogs = process.env.ENABLE_LOGS === 'true';
-const debug = process.env.DEBUG === 'true';
+class App {
+  private enableLogs: boolean;
+  private debug: boolean;
+  private username: string;
+  private useVariableInterval: boolean;
+  private defaultInterval: number;
+  private minInterval: number;
+  private maxInterval: number;
 
-// (async () => {
-//   const tikTokService = new TikTokService();
+  private tikTokService: TikTokService;
+  private logger: ILogger;
 
-//   const isConnected = await tikTokService.connectToChat();
-//   if (isConnected) {
-//     tikTokService.startChatListener();
-//   }
-// })();
+  constructor() {
+    require('dotenv').config();
 
-function runTikTokService(callback: (error?: Error) => void): void {
-  const tiktokService = new TikTokService();
-  const variableInterval = process.env.USE_VARIABLE_INTERVAL === 'true';
-  const defaultInterval = process.env.DEFAULT_INTERVAL_IN_SECONDS ? parseInt(process.env.DEFAULT_INTERVAL_IN_SECONDS) * 1000 : 60000;
-  const minInterval = process.env.MIN_INTERVAL_IN_SECONDS ? parseInt(process.env.MIN_INTERVAL_IN_SECONDS) * 1000 : 60000;
-  const maxInterval = process.env.MAX_INTERVAL_IN_SECONDS ? parseInt(process.env.MAX_INTERVAL_IN_SECONDS) * 1000 : 90000;
+    this.enableLogs = process.env.ENABLE_LOGS === 'true';
+    this.debug = process.env.DEBUG === 'true';
+    this.username = process.env.TIKTOK_USERNAME || '';
+    this.useVariableInterval = process.env.USE_VARIABLE_INTERVAL === 'true';
+    this.defaultInterval = process.env.DEFAULT_INTERVAL_IN_SECONDS ? parseInt(process.env.DEFAULT_INTERVAL_IN_SECONDS) * 1000 : 60000;
 
-  let interval: NodeJS.Timeout;
+    this.minInterval = process.env.MIN_INTERVAL_IN_SECONDS ? parseInt(process.env.MIN_INTERVAL_IN_SECONDS) * 1000 : 60000;
+    this.maxInterval = process.env.MAX_INTERVAL_IN_SECONDS ? parseInt(process.env.MAX_INTERVAL_IN_SECONDS) * 1000 : 90000;
 
-  const runWithVariableInterval = () => {
-    try {
-      tiktokService.run();
-    } catch (error: any) {
-      clearInterval(interval);
-      callback(error);
+    if (this.username === '') {
+      throw new Error('Please set TIKTOK_USERNAME environment variable');
     }
 
-    if (variableInterval) {
-      const variableInterval = Math.random() * (maxInterval - minInterval) + minInterval;
-      clearInterval(interval);
-      interval = setTimeout(runWithVariableInterval, variableInterval);
-
-      if (debug) {
-        console.log('Random interval: ', parseInt(variableInterval.toString()));
+    this.logger = new Logger();
+    this.tikTokService = new TikTokService(this.username, this.debug, this.enableLogs, this.logger);
+    
+    this.runTikTokService((error?: Error) => {
+      if (this.enableLogs) {
+        if (error) {
+          const errorToString = error.toString();
+          this.logger.log(errorToString);
+        } else {
+          this.logger.log('Finished running TikTok Service');
+        }
       }
-    } else {
-      interval = setTimeout(runWithVariableInterval, defaultInterval);
-    }
-  };
+    });
+  }
 
-  interval = setTimeout(runWithVariableInterval, defaultInterval);
-}
-
-
-
-runTikTokService((error?: Error) => {
-  if (enableLogs) {
-    const logger = new Logger();
-    if (error) {
-      const errorToString = error.toString();
-      logger.log(errorToString);
-    } else {
-      logger.log('Finished running TikTok Service');
+  private async forceConnectToChat(): Promise<void> {
+    const isConnected = await this.tikTokService.connectToChat();
+    if (isConnected) {
+      this.tikTokService.startChatListener();
     }
   }
-});
 
+  private runTikTokService(callback: (error?: Error) => void): void {
+    let interval: NodeJS.Timeout;
+
+    const runWithVariableInterval = () => {
+      try {
+        this.tikTokService.run();
+      } catch (error: any) {
+        clearInterval(interval);
+        callback(error);
+      }
+
+      if (this.useVariableInterval) {
+        const variableInterval = Math.random() * (this.maxInterval - this.minInterval) + this.minInterval;
+        clearInterval(interval);
+        interval = setTimeout(runWithVariableInterval, variableInterval);
+
+        if (this.debug) {
+          console.log('Random interval: ', parseInt(variableInterval.toString()));
+        }
+      } else {
+        interval = setTimeout(runWithVariableInterval, this.defaultInterval);
+      }
+    };
+
+    interval = setTimeout(runWithVariableInterval, this.defaultInterval);
+  }
+}
+
+new App();
