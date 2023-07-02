@@ -1,8 +1,11 @@
+import express, { Request, Response } from 'express';
 import Logger from './utils/logger';
 import DiscordService from './services/discordService';
 import TikTokService from './services/tiktokService';
 import ILogger from './interfaces/iLogger';
 import * as Sentry from "@sentry/node";
+import IDatabaseService from './interfaces/iDatabaseService';
+import DatabaseService from './services/databaseService';
 
 class App {
   private enableLogs: boolean;
@@ -14,6 +17,11 @@ class App {
   private maxInterval: number;
   private useSentry: boolean;
   private sentryDsn: string;
+  private useExpress: boolean;
+  private expressApp: express.Application | undefined;
+  private endpoint: string;
+  private port: number;
+  private sqliteDbPath: string;
   private discordToken: string;
   private channelId: string;
   private discordMessage: string;
@@ -33,6 +41,10 @@ class App {
     this.maxInterval = process.env.MAX_INTERVAL_IN_SECONDS ? parseInt(process.env.MAX_INTERVAL_IN_SECONDS) * 1000 : 90000;
     this.useSentry = process.env.USE_SENTRY === 'true';
     this.sentryDsn = process.env.SENTRY_DSN || '';
+    this.useExpress = process.env.USE_EXPRESS === 'true';
+    this.endpoint = process.env.ENDPOINT || '/';
+    this.port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+    this.sqliteDbPath = process.env.SQLITE_FILE_PATH || 'sqlite://database.sqlite';
     this.discordToken = process.env.DISCORD_TOKEN || '';
     this.channelId = process.env.DISCORD_CHANNEL_ID || '';
     this.discordMessage = process.env.DISCORD_MESSAGE || '';
@@ -67,18 +79,30 @@ class App {
     const discordService = new DiscordService(this.discordToken, this.channelId, this.debug, this.enableLogs, this.logger);
     discordService.message = this.discordMessage;
 
-    this.tikTokService = new TikTokService(this.username, discordService, this.debug, this.enableLogs, this.logger);
-    
-    this.runTikTokService((error?: Error) => {
-      if (this.enableLogs) {
-        if (error) {
-          const errorToString = error.toString();
-          this.logger.log(errorToString);
-        } else {
-          this.logger.log('Finished running TikTok Service');
-        }
+    const databaseService = new DatabaseService(this.sqliteDbPath, this.debug, this.enableLogs, this.logger);
+    this.tikTokService = new TikTokService(this.username, discordService, databaseService, this.debug, this.enableLogs, this.logger);
+
+    if (this.useExpress) {
+      this.expressApp = express();
+
+      if (this.useSentry) {
+        this.expressApp.use(Sentry.Handlers.requestHandler());
       }
-    });
+
+      this.setupExpressRoutes();
+      this.startExpressServer();
+    } else {
+      this.runTikTokService((error?: Error) => {
+        if (this.enableLogs) {
+          if (error) {
+            const errorToString = error.toString();
+            this.logger.log(errorToString);
+          } else {
+            this.logger.log('Finished running TikTok Service');
+          }
+        }
+      });
+    }
   }
 
   private async forceConnectToChat(): Promise<void> {
@@ -88,12 +112,29 @@ class App {
     }
   }
 
+  private setupExpressRoutes(): void {
+    this.expressApp!.get(this.endpoint, async (req: Request, res: Response) => {
+      try {
+        await this.tikTokService.runViaExpress();
+        res.status(200).json({ message: 'TikTok service executed successfully.' });
+      } catch (error: any) {
+        res.status(500).json({ message: 'There was an error while processing the request. Please check the error log.' });
+      }
+    });
+  }
+
+  private startExpressServer(): void {
+    this.expressApp!.listen(this.port, () => {
+      console.log(`Server listening on port ${this.port}`);
+    });
+  }
+
   private runTikTokService(callback: (error?: Error) => void): void {
     let interval: NodeJS.Timeout;
 
     const runWithVariableInterval = () => {
       try {
-        this.tikTokService.run();
+        this.tikTokService.runViaInterval();
       } catch (error: any) {
         clearInterval(interval);
         callback(error);

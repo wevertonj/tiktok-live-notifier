@@ -1,3 +1,4 @@
+import IDatabaseService from "../interfaces/iDatabaseService";
 import IDiscordService from "../interfaces/iDiscordService";
 import ILogger from "../interfaces/iLogger";
 
@@ -7,6 +8,7 @@ const sleep = require('sleep');
 class TikTokService {
   private tiktokLiveConnection: typeof WebcastPushConnection;
   private discordService: IDiscordService;
+  private databaseService: IDatabaseService;
   private username: string;
   private status: String = 'offline';
   private viewers: number = 0;
@@ -14,8 +16,9 @@ class TikTokService {
   private log: boolean = false;
   private logger: ILogger;
 
-  constructor(username: string, discordService: IDiscordService, debug: boolean, log: boolean, logger: ILogger) {
+  constructor(username: string, discordService: IDiscordService, databaseService: IDatabaseService, debug: boolean, log: boolean, logger: ILogger) {
     this.discordService = discordService;
+    this.databaseService = databaseService;
     this.username = username;
     this.debug = debug;
     this.log = log;
@@ -28,7 +31,30 @@ class TikTokService {
     this.error();
   }
 
-  async run(): Promise<void> {
+  async runViaExpress(): Promise<void> {
+    const color = '\x1b[35m';
+    const resetColor = '\x1b[0m';
+    const time = this.getCurrentTimeFormatted();
+
+    await this.roomInfo();
+    if (this.viewers > 1) {
+      const connect = await this.connectToChat();
+      console.log('connect', connect);
+
+      if (connect) {
+        await this.disconnectFromChat();
+      }
+      if (this.debug && this.status) {
+        console.log('Viewers: ', this.viewers);
+      }
+    }
+
+    if (this.debug) {
+      console.log(`${color}[${time}] Status: ${this.status}${resetColor}`);
+    }
+  }
+
+  async runViaInterval(): Promise<void> {
     const color = '\x1b[35m';
     const resetColor = '\x1b[0m';
     const time = this.getCurrentTimeFormatted();
@@ -92,6 +118,24 @@ class TikTokService {
         if (this.log) {
           this.logger.log(err);
         }
+      }
+
+      return false;
+    }
+  }
+
+  async disconnectFromChat(): Promise<boolean> {
+    try {
+      await this.tiktokLiveConnection.disconnect();
+
+      return true;
+    } catch (err: any) {
+      if (this.debug) {
+        console.error(err);
+      }
+
+      if (this.log) {
+        this.logger.log(err);
       }
 
       return false;
@@ -172,9 +216,22 @@ class TikTokService {
 
   /** Events */
   private connected() {
-    this.tiktokLiveConnection.on('connected', (state: any) => {
+    this.tiktokLiveConnection.on('connected', async (state: any) => {
       this.status = 'connected';
-      this.discordService.sendMessage(this.discordService.getMessage());
+
+
+      const startedTimestamp = state.roomInfo.create_time;
+      const lastUpdate = await this.databaseService.get('lastUpdate');
+
+      console.log('startedTimestamp', startedTimestamp);
+      console.log('lastUpdate', lastUpdate);
+
+      if (startedTimestamp != lastUpdate) {
+        this.databaseService.set('lastUpdate', startedTimestamp);
+        this.discordService.sendMessage(this.discordService.getMessage());
+      }
+
+
 
       if (this.debug) {
         console.info(`Connected to roomId ${state.roomId}`);

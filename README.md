@@ -41,6 +41,10 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     DEFAULT_INTERVAL_IN_SECONDS=
     MIN_INTERVAL_IN_SECONDS=
     MAX_INTERVAL_IN_SECONDS=
+    USE_EXPRESS=
+    ENDPOINT=
+    PORT=
+    SQLITE_FILE_PATH=
     DISCORD_TOKEN=
     DISCORD_CHANNEL_ID=
     DISCORD_MESSAGE=
@@ -57,6 +61,10 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     | `DEFAULT_INTERVAL_IN_SECONDS` | The default interval in seconds to check for live streams. | 60 |
     | `MIN_INTERVAL_IN_SECONDS` | The minimum interval in seconds to check for live streams. This is only used if `USE_VARIABLE_INTERVAL` is set to `true`. | 60* |
     | `MAX_INTERVAL_IN_SECONDS` | The maximum interval in seconds to check for live streams. This is only used if `USE_VARIABLE_INTERVAL` is set to `true`. | 90* |
+    | `USE_EXPRESS` | Set to `true` to enable the Express server, or leave it empty to disable the Express server. | `false` |
+    | `ENDPOINT` | The endpoint to use for the Express server. This is only used if `USE_EXPRESS` is set to `true`. | `/` |
+    | `PORT` | The port to use for the Express server. This is only used if `USE_EXPRESS` is set to `true`. | 3000 |
+    | `SQLITE_FILE_PATH` | The path to the SQLite file. | `sqlite://database.sqlite` |
     | `DISCORD_TOKEN` | Your Discord bot token. | Empty |
     | `DISCORD_CHANNEL_ID` | The Discord channel ID to send the notifications. | Empty |
     | `DISCORD_MESSAGE` | The Discord message to send when a live stream starts. Supports '\n' for line break. | Empty |
