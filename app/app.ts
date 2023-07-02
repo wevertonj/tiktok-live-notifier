@@ -1,4 +1,5 @@
 import Logger from './utils/logger';
+import DiscordService from './services/discordService';
 import TikTokService from './services/tiktokService';
 import ILogger from './interfaces/iLogger';
 import * as Sentry from "@sentry/node";
@@ -13,6 +14,9 @@ class App {
   private maxInterval: number;
   private useSentry: boolean;
   private sentryDsn: string;
+  private discordToken: string;
+  private channelId: string;
+  private discordMessage: string;
 
   private tikTokService: TikTokService;
   private logger: ILogger;
@@ -29,6 +33,9 @@ class App {
     this.maxInterval = process.env.MAX_INTERVAL_IN_SECONDS ? parseInt(process.env.MAX_INTERVAL_IN_SECONDS) * 1000 : 90000;
     this.useSentry = process.env.USE_SENTRY === 'true';
     this.sentryDsn = process.env.SENTRY_DSN || '';
+    this.discordToken = process.env.DISCORD_TOKEN || '';
+    this.channelId = process.env.DISCORD_CHANNEL_ID || '';
+    this.discordMessage = process.env.DISCORD_MESSAGE || '';
 
     if (this.username === '') {
       throw new Error('Please set TIKTOK_USERNAME environment variable');
@@ -43,8 +50,24 @@ class App {
       this.logger = new Logger();
     }
 
+    if (this.discordToken === '') {
+      throw new Error('Please set DISCORD_TOKEN environment variable');
+    }
 
-    this.tikTokService = new TikTokService(this.username, this.debug, this.enableLogs, this.logger);
+    if (this.channelId === '') {
+      throw new Error('Please set DISCORD_CHANNEL_ID environment variable');
+    }
+
+    if (this.discordMessage === '') {
+      throw new Error('Please set DISCORD_MESSAGE environment variable');
+    } else {
+      this.discordMessage = this.discordMessage.replace(/\\n/g, '\n');
+    }
+
+    const discordService = new DiscordService(this.discordToken, this.channelId, this.debug, this.enableLogs, this.logger);
+    discordService.message = this.discordMessage;
+
+    this.tikTokService = new TikTokService(this.username, discordService, this.debug, this.enableLogs, this.logger);
     
     this.runTikTokService((error?: Error) => {
       if (this.enableLogs) {

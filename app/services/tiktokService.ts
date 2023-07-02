@@ -1,3 +1,4 @@
+import IDiscordService from "../interfaces/iDiscordService";
 import ILogger from "../interfaces/iLogger";
 
 const { WebcastPushConnection } = require('tiktok-live-connector');
@@ -5,6 +6,7 @@ const sleep = require('sleep');
 
 class TikTokService {
   private tiktokLiveConnection: typeof WebcastPushConnection;
+  private discordService: IDiscordService;
   private username: string;
   private status: String = 'offline';
   private viewers: number = 0;
@@ -12,7 +14,8 @@ class TikTokService {
   private log: boolean = false;
   private logger: ILogger;
 
-  constructor(username: string, debug: boolean, log: boolean, logger: ILogger) {
+  constructor(username: string, discordService: IDiscordService, debug: boolean, log: boolean, logger: ILogger) {
+    this.discordService = discordService;
     this.username = username;
     this.debug = debug;
     this.log = log;
@@ -171,6 +174,7 @@ class TikTokService {
   private connected() {
     this.tiktokLiveConnection.on('connected', (state: any) => {
       this.status = 'connected';
+      this.discordService.sendMessage(this.discordService.getMessage());
 
       if (this.debug) {
         console.info(`Connected to roomId ${state.roomId}`);

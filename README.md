@@ -41,6 +41,9 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     DEFAULT_INTERVAL_IN_SECONDS=
     MIN_INTERVAL_IN_SECONDS=
     MAX_INTERVAL_IN_SECONDS=
+    DISCORD_TOKEN=
+    DISCORD_CHANNEL_ID=
+    DISCORD_MESSAGE=
     ```
 
     | Variable | Description | Default Value |
@@ -54,6 +57,9 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     | `DEFAULT_INTERVAL_IN_SECONDS` | The default interval in seconds to check for live streams. | 60 |
     | `MIN_INTERVAL_IN_SECONDS` | The minimum interval in seconds to check for live streams. This is only used if `USE_VARIABLE_INTERVAL` is set to `true`. | 60* |
     | `MAX_INTERVAL_IN_SECONDS` | The maximum interval in seconds to check for live streams. This is only used if `USE_VARIABLE_INTERVAL` is set to `true`. | 90* |
+    | `DISCORD_TOKEN` | Your Discord bot token. | Empty |
+    | `DISCORD_CHANNEL_ID` | The Discord channel ID to send the notifications. | Empty |
+    | `DISCORD_MESSAGE` | The Discord message to send when a live stream starts. Supports '\n' for line break. | Empty |
 
     \* Keep in mind that if you use the default values, TikTok will block your IP after some time.
 
@@ -63,9 +69,28 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     npm start
     ```
 
+## Connecting the Discord Bot
+
+To receive notifications in your Discord server, you need to connect your bot to the server. Follow the steps below to connect the bot:
+
+1. [How to create a Discord bot](https://discordjs.guide/preparations/setting-up-a-bot-application.html) - Follow this tutorial to create a Discord bot and obtain a bot token.
+
+2. [How to add a Discord bot to a server](https://discordjs.guide/preparations/adding-your-bot-to-servers.html) - Follow this tutorial to add the bot to your Discord server. The `applications.commands` scope is not required.
+
+3. [How to get your Discord channel ID](https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-) - Follow this tutorial to find the channel ID of the Discord channel where you want to receive the notifications.
+
+4. Once you have obtained the bot token and channel ID, open the `.env` file in the root directory of the project and update the following variables:
+
+   - `DISCORD_TOKEN` - Set this variable to your Discord bot token.
+   - `DISCORD_CHANNEL_ID` - Set this variable to the channel ID of the Discord channel.
+
+5. Save the `.env` file.
+
+Now, when a live stream starts, the application will send a notification to the specified Discord channel.
+
 ## Usage
 
-The application will connect to TikTok Live and monitor for live streams. When a live stream starts, it will provide notifications in the console.
+The application will connect to TikTok Live and monitor for live streams. When a live stream starts, it will send a notification to the Discord channel defined in the `.env` file.
 
 ## Logging
 

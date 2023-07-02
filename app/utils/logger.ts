@@ -48,7 +48,7 @@ class Logger implements ILogger {
   }  
 
   public sendToMonitoring(message: string | Error): void {
-    if (this.sentry) {
+    if (this.sentry && message instanceof Error) {
       this.sentry.captureException(message);
     }
   }
