@@ -44,6 +44,10 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     USE_EXPRESS=
     ENDPOINT=
     PORT=
+    PROXY_ACCESS=
+    PROXY_TIMEOUT_IN_MILLISECONDS=
+    MINIMUM_VIEWERS_TO_SEND_NOTIFICATION=
+    MINIMUM_TIME_TO_SEND_NOTIFICATION_IN_SECONDS=
     SQLITE_FILE_PATH=
     DISCORD_TOKEN=
     DISCORD_CHANNEL_ID=
@@ -64,6 +68,10 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     | `USE_EXPRESS` | Set to `true` to enable the Express server, or leave it empty to disable the Express server. | `false` |
     | `ENDPOINT` | The endpoint to use for the Express server. This is only used if `USE_EXPRESS` is set to `true`. | `/` |
     | `PORT` | The port to use for the Express server. This is only used if `USE_EXPRESS` is set to `true`. | 3000 |
+    | `PROXY_ACCESS` | The proxy access type to use. Will only be used if some value is passed. Must be in the format 'https://username:password@host:port'. | Empty |
+    | `PROXY_TIMEOUT_IN_MILLISECONDS` | The proxy timeout in milliseconds. | 30000 |
+    | `MINIMUM_VIEWERS_TO_SEND_NOTIFICATION` | The minimum number of viewers on chat to send a notification. | 10 |
+    | `MINIMUM_TIME_TO_SEND_NOTIFICATION_IN_SECONDS` | The minimum time since the last update to send a new notification. Whenever the algorithm identifies that the user is live, it will update the last update time to the current time without sending a new notification. | 3600 |
     | `SQLITE_FILE_PATH` | The path to the SQLite file. | `sqlite://database.sqlite` |
     | `DISCORD_TOKEN` | Your Discord bot token. | Empty |
     | `DISCORD_CHANNEL_ID` | The Discord channel ID to send the notifications. | Empty |

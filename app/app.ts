@@ -21,6 +21,10 @@ class App {
   private expressApp: express.Application | undefined;
   private endpoint: string;
   private port: number;
+  private proxyAccess: string;
+  private proxyTimeout: number;
+  private minViewers: number;
+  private minUpdateInterval: number;
   private sqliteDbPath: string;
   private discordToken: string;
   private channelId: string;
@@ -44,6 +48,10 @@ class App {
     this.useExpress = process.env.USE_EXPRESS === 'true';
     this.endpoint = process.env.ENDPOINT || '/';
     this.port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+    this.proxyAccess = process.env.PROXY_ACCESS || '';
+    this.proxyTimeout = process.env.PROXY_TIMEOUT_IN_MILLISECONDS ? parseInt(process.env.PROXY_TIMEOUT_IN_MILLISECONDS) : 30000;
+    this.minViewers = process.env.MIN_VIEWERS ? parseInt(process.env.MIN_VIEWERS) : 10;
+    this.minUpdateInterval = process.env.MIN_UPDATE_INTERVAL_IN_SECONDS ? parseInt(process.env.MIN_UPDATE_INTERVAL_IN_SECONDS) : 3600;
     this.sqliteDbPath = process.env.SQLITE_FILE_PATH || 'sqlite://database.sqlite';
     this.discordToken = process.env.DISCORD_TOKEN || '';
     this.channelId = process.env.DISCORD_CHANNEL_ID || '';
@@ -80,7 +88,18 @@ class App {
     discordService.message = this.discordMessage;
 
     const databaseService = new DatabaseService(this.sqliteDbPath, this.debug, this.enableLogs, this.logger);
-    this.tikTokService = new TikTokService(this.username, discordService, databaseService, this.debug, this.enableLogs, this.logger);
+    this.tikTokService = new TikTokService({
+      username: this.username,
+      discordService: discordService,
+      databaseService: databaseService,
+      minViewers: this.minViewers,
+      minUpdateInterval: this.minUpdateInterval,
+      proxyAccess: this.proxyAccess,
+      proxyTimeout: this.proxyTimeout,
+      debug: this.debug,
+      log: this.enableLogs,
+      logger: this.logger
+    });
 
     if (this.useExpress) {
       this.expressApp = express();

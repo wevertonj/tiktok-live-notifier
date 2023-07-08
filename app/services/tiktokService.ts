@@ -3,28 +3,72 @@ import IDiscordService from "../interfaces/iDiscordService";
 import ILogger from "../interfaces/iLogger";
 
 const { WebcastPushConnection } = require('tiktok-live-connector');
+import { HttpsProxyAgent } from 'https-proxy-agent';
 const sleep = require('sleep');
 
 class TikTokService {
   private tiktokLiveConnection: typeof WebcastPushConnection;
   private discordService: IDiscordService;
   private databaseService: IDatabaseService;
+  private usingProxy: boolean = false;
   private username: string;
   private status: String = 'offline';
+  private createTimestamp: number = 0;
   private viewers: number = 0;
+  private minViewers: number;
+  private minUpdateInterval: number;
   private debug: boolean = false;
   private log: boolean = false;
   private logger: ILogger;
 
-  constructor(username: string, discordService: IDiscordService, databaseService: IDatabaseService, debug: boolean, log: boolean, logger: ILogger) {
+  constructor(
+    {
+      username,
+      discordService,
+      proxyAccess,
+      proxyTimeout,
+      databaseService,
+      minViewers,
+      minUpdateInterval,
+      debug,
+      log,
+      logger
+    }:
+      {
+        username: string;
+        discordService: IDiscordService;
+        proxyAccess: string;
+        proxyTimeout: number;
+        databaseService: IDatabaseService;
+        minViewers: number;
+        minUpdateInterval: number;
+        debug: boolean;
+        log: boolean;
+        logger: ILogger;
+      }
+  ) {
     this.discordService = discordService;
     this.databaseService = databaseService;
     this.username = username;
+    this.minViewers = minViewers;
+    this.minUpdateInterval = minUpdateInterval;
     this.debug = debug;
     this.log = log;
     this.logger = logger;
 
-    this.tiktokLiveConnection = new WebcastPushConnection(this.username);
+    if (proxyAccess !== '') {
+      this.tiktokLiveConnection = new WebcastPushConnection(this.username, {
+        requestOptions: {
+          httpsAgent: new HttpsProxyAgent(proxyAccess),
+          timeout: proxyTimeout
+        }
+      });
+
+      this.usingProxy = true;
+    } else {
+      this.tiktokLiveConnection = new WebcastPushConnection(this.username);
+    }
+
     this.connected();
     this.disconnected();
     this.viewerCount();
@@ -38,11 +82,15 @@ class TikTokService {
 
     await this.roomInfo();
     if (this.viewers > 1) {
-      const connect = await this.connectToChat();
-      console.log('connect', connect);
+      if (!this.usingProxy) {
+        const connect = await this.connectToChat();
+        console.log('connect', connect);
 
-      if (connect) {
-        await this.disconnectFromChat();
+        if (connect) {
+          await this.disconnectFromChat();
+        }
+      } else {
+        await this.isLiveStreaming();
       }
       if (this.debug && this.status) {
         console.log('Viewers: ', this.viewers);
@@ -64,14 +112,18 @@ class TikTokService {
         await this.roomInfo();
 
         if (this.viewers > 1) {
-          const connect = await this.connectToChat();
+          if (!this.usingProxy) {
+            const connect = await this.connectToChat();
 
-          if (connect && this.debug) {
-            this.startChatListener();
-          }
+            if (connect && this.debug) {
+              this.startChatListener();
+            }
 
-          if (this.debug && this.status) {
-            console.log('Viewers: ', this.viewers);
+            if (this.debug && this.status) {
+              console.log('Viewers: ', this.viewers);
+            }
+          } else {
+            await this.isLiveStreaming();
           }
         }
         break;
@@ -95,6 +147,31 @@ class TikTokService {
     }
   }
 
+  async isLiveStreaming() {
+    const currentTime = Math.floor(Date.now() / 1000);
+    const startedTime = this.createTimestamp;
+    const lastUpdate: number = await this.databaseService.get('lastUpdate') || 0;
+    const lastUpdateStartedTime: number = await this.databaseService.get('lastUpdateStartedTime') || 0;
+    let isLive = false;
+
+    const validateLastUpdate: boolean = (lastUpdate + this.minUpdateInterval) < currentTime;
+    const validateLastUpdateStartedTime: boolean = (lastUpdateStartedTime + this.minUpdateInterval) < startedTime;
+    const validateViewers: boolean = this.viewers >= this.minViewers;
+
+    if (validateLastUpdate && validateLastUpdateStartedTime && validateViewers) {
+      await this.databaseService.set('lastUpdate', currentTime);
+      await this.databaseService.set('lastUpdateStartedTime', startedTime);
+
+      this.discordService.sendMessage(this.discordService.getMessage());
+      this.status = 'connected';
+      isLive = true;
+    } else if (validateViewers) {
+      await this.databaseService.set('lastUpdate', currentTime);
+    }
+
+    return isLive;
+  }
+
   async connectToChat(): Promise<boolean> {
     try {
       const state = await this.tiktokLiveConnection.connect();
@@ -112,7 +189,7 @@ class TikTokService {
     } catch (err: any) {
       if (!err.message.includes('LIVE has ended')) {
         if (this.debug) {
-          console.log('Stream has ended');
+          console.log(err.message);
         }
 
         if (this.log) {
@@ -147,6 +224,7 @@ class TikTokService {
       const currentTime = Math.floor(Date.now() / 1000);
       const roomInfo = await this.tiktokLiveConnection.getRoomInfo();
       this.viewers = roomInfo.user_count;
+      this.createTimestamp = roomInfo.create_time;
       const startedLessThan5MinutesAgo = currentTime - roomInfo.create_time < 300;
 
       if ((showIntro || startedLessThan5MinutesAgo) && this.debug) {
@@ -178,7 +256,7 @@ class TikTokService {
       return roomInfo;
     } catch (err: any) {
       if (err.message.includes('LIVE has ended') || this.debug) {
-        console.error(err);
+        console.error(err.message);
       }
 
       if (this.log) {
@@ -220,14 +298,17 @@ class TikTokService {
       this.status = 'connected';
 
 
+      const currentTime = Math.floor(Date.now() / 1000);
       const startedTimestamp = state.roomInfo.create_time;
       const lastUpdate = await this.databaseService.get('lastUpdate');
+      const lastUpdateStartedTime = await this.databaseService.get('lastUpdateStartedTime');
 
       console.log('startedTimestamp', startedTimestamp);
       console.log('lastUpdate', lastUpdate);
 
-      if (startedTimestamp != lastUpdate) {
-        this.databaseService.set('lastUpdate', startedTimestamp);
+      if ((lastUpdate + this.minUpdateInterval) < currentTime && startedTimestamp != lastUpdateStartedTime) {
+        await this.databaseService.set('lastUpdate', currentTime);
+        await this.databaseService.set('lastUpdateStartedTime', startedTimestamp);
         this.discordService.sendMessage(this.discordService.getMessage());
       }
 
@@ -238,7 +319,7 @@ class TikTokService {
       }
 
       if (this.log) {
-        console.info(`Connected to roomId ${state.roomId}`);
+        this.logger.log(`Connected to roomId ${state.roomId}`);
       }
     });
   }
