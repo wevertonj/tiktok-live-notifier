@@ -4,13 +4,13 @@ import ILogger from "../interfaces/iLogger";
 
 const { WebcastPushConnection } = require('tiktok-live-connector');
 import { HttpsProxyAgent } from 'https-proxy-agent';
-const sleep = require('sleep');
 
 class TikTokService {
   private tiktokLiveConnection: typeof WebcastPushConnection;
   private discordService: IDiscordService;
   private databaseService: IDatabaseService;
   private usingProxy: boolean = false;
+  private proxyType: string;
   private username: string;
   private status: String = 'offline';
   private createTimestamp: number = 0;
@@ -26,6 +26,7 @@ class TikTokService {
       username,
       discordService,
       proxyAccess,
+      proxyType,
       proxyTimeout,
       databaseService,
       minViewers,
@@ -38,6 +39,7 @@ class TikTokService {
         username: string;
         discordService: IDiscordService;
         proxyAccess: string;
+        proxyType: string;
         proxyTimeout: number;
         databaseService: IDatabaseService;
         minViewers: number;
@@ -55,14 +57,28 @@ class TikTokService {
     this.debug = debug;
     this.log = log;
     this.logger = logger;
+    this.proxyType = proxyType;
 
     if (proxyAccess !== '') {
-      this.tiktokLiveConnection = new WebcastPushConnection(this.username, {
-        requestOptions: {
-          httpsAgent: new HttpsProxyAgent(proxyAccess),
-          timeout: proxyTimeout
-        }
-      });
+      let proxyOptions: Object;
+
+      if (this.proxyType === 'http') {
+        proxyOptions = {
+          requestOptions: {
+            httpsAgent: new HttpsProxyAgent(proxyAccess),
+            timeout: proxyTimeout
+          }
+        };
+      } else {
+        proxyOptions = {
+          websocketOptions: {
+            httpsAgent: new HttpsProxyAgent(proxyAccess),
+            timeout: proxyTimeout
+          }
+        };
+      }
+
+      this.tiktokLiveConnection = new WebcastPushConnection(this.username, proxyOptions);
 
       this.usingProxy = true;
     } else {
@@ -82,7 +98,7 @@ class TikTokService {
 
     await this.roomInfo();
     if (this.viewers > 1) {
-      if (!this.usingProxy) {
+      if (!this.usingProxy || this.proxyType === 'socks5') {
         const connect = await this.connectToChat();
         console.log('connect', connect);
 
@@ -112,7 +128,7 @@ class TikTokService {
         await this.roomInfo();
 
         if (this.viewers > 1) {
-          if (!this.usingProxy) {
+          if (!this.usingProxy || this.proxyType === 'socks5') {
             const connect = await this.connectToChat();
 
             if (connect && this.debug) {
@@ -133,7 +149,7 @@ class TikTokService {
         }
         break;
       case 'disconnected':
-        sleep.sleep(1800);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1800000);
         this.status = 'offline';
         break;
       case 'ended':
@@ -303,11 +319,9 @@ class TikTokService {
       const lastUpdate = await this.databaseService.get('lastUpdate');
       const lastUpdateStartedTime = await this.databaseService.get('lastUpdateStartedTime');
 
-      console.log('startedTimestamp', startedTimestamp);
-      console.log('lastUpdate', lastUpdate);
+      await this.databaseService.set('lastUpdate', currentTime);
 
       if ((lastUpdate + this.minUpdateInterval) < currentTime && startedTimestamp != lastUpdateStartedTime) {
-        await this.databaseService.set('lastUpdate', currentTime);
         await this.databaseService.set('lastUpdateStartedTime', startedTimestamp);
         this.discordService.sendMessage(this.discordService.getMessage());
       }

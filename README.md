@@ -45,6 +45,7 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     ENDPOINT=
     PORT=
     PROXY_ACCESS=
+    PROXY_TYPE=
     PROXY_TIMEOUT_IN_MILLISECONDS=
     MINIMUM_VIEWERS_TO_SEND_NOTIFICATION=
     MINIMUM_TIME_TO_SEND_NOTIFICATION_IN_SECONDS=
@@ -69,6 +70,7 @@ A Node.js application that connects to TikTok Live and provides notifications wh
     | `ENDPOINT` | The endpoint to use for the Express server. This is only used if `USE_EXPRESS` is set to `true`. | `/` |
     | `PORT` | The port to use for the Express server. This is only used if `USE_EXPRESS` is set to `true`. | 3000 |
     | `PROXY_ACCESS` | The proxy access type to use. Will only be used if some value is passed. Must be in the format 'https://username:password@host:port'. | Empty |
+    | `PROXY_TYPE` | The proxy type to use. This is only used if `PROXY_ACCESS` is passed. The options is `http` or `socks5` | `http` |
     | `PROXY_TIMEOUT_IN_MILLISECONDS` | The proxy timeout in milliseconds. | 30000 |
     | `MINIMUM_VIEWERS_TO_SEND_NOTIFICATION` | The minimum number of viewers on chat to send a notification. | 10 |
     | `MINIMUM_TIME_TO_SEND_NOTIFICATION_IN_SECONDS` | The minimum time since the last update to send a new notification. Whenever the algorithm identifies that the user is live, it will update the last update time to the current time without sending a new notification. | 3600 |

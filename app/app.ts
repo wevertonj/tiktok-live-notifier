@@ -4,7 +4,6 @@ import DiscordService from './services/discordService';
 import TikTokService from './services/tiktokService';
 import ILogger from './interfaces/iLogger';
 import * as Sentry from "@sentry/node";
-import IDatabaseService from './interfaces/iDatabaseService';
 import DatabaseService from './services/databaseService';
 
 class App {
@@ -22,6 +21,7 @@ class App {
   private endpoint: string;
   private port: number;
   private proxyAccess: string;
+  private proxyType: string;
   private proxyTimeout: number;
   private minViewers: number;
   private minUpdateInterval: number;
@@ -49,6 +49,7 @@ class App {
     this.endpoint = process.env.ENDPOINT || '/';
     this.port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     this.proxyAccess = process.env.PROXY_ACCESS || '';
+    this.proxyType = process.env.PROXY_TYPE || 'http';
     this.proxyTimeout = process.env.PROXY_TIMEOUT_IN_MILLISECONDS ? parseInt(process.env.PROXY_TIMEOUT_IN_MILLISECONDS) : 30000;
     this.minViewers = process.env.MIN_VIEWERS ? parseInt(process.env.MIN_VIEWERS) : 10;
     this.minUpdateInterval = process.env.MIN_UPDATE_INTERVAL_IN_SECONDS ? parseInt(process.env.MIN_UPDATE_INTERVAL_IN_SECONDS) : 3600;
@@ -68,6 +69,10 @@ class App {
       this.logger = new Logger(Sentry);
     } else {
       this.logger = new Logger();
+    }
+
+    if (this.proxyType !== 'http' && this.proxyType !== 'socks5') {
+      throw new Error('Proxy type must be http or socks5');
     }
 
     if (this.discordToken === '') {
@@ -95,6 +100,7 @@ class App {
       minViewers: this.minViewers,
       minUpdateInterval: this.minUpdateInterval,
       proxyAccess: this.proxyAccess,
+      proxyType: this.proxyType,
       proxyTimeout: this.proxyTimeout,
       debug: this.debug,
       log: this.enableLogs,
