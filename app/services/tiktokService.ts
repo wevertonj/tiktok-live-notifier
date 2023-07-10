@@ -97,8 +97,8 @@ class TikTokService {
     const time = this.getCurrentTimeFormatted();
 
     await this.roomInfo();
-    if (this.viewers > 1) {
-      if (!this.usingProxy || this.proxyType === 'socks5') {
+    if (this.viewers > this.minViewers) {
+      if (!this.usingProxy) {
         const connect = await this.connectToChat();
         console.log('connect', connect);
 

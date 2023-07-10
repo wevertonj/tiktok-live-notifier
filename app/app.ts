@@ -51,8 +51,8 @@ class App {
     this.proxyAccess = process.env.PROXY_ACCESS || '';
     this.proxyType = process.env.PROXY_TYPE || 'http';
     this.proxyTimeout = process.env.PROXY_TIMEOUT_IN_MILLISECONDS ? parseInt(process.env.PROXY_TIMEOUT_IN_MILLISECONDS) : 30000;
-    this.minViewers = process.env.MIN_VIEWERS ? parseInt(process.env.MIN_VIEWERS) : 10;
-    this.minUpdateInterval = process.env.MIN_UPDATE_INTERVAL_IN_SECONDS ? parseInt(process.env.MIN_UPDATE_INTERVAL_IN_SECONDS) : 3600;
+    this.minViewers = process.env.MINIMUM_VIEWERS_TO_SEND_NOTIFICATION ? parseInt(process.env.MINIMUM_VIEWERS_TO_SEND_NOTIFICATION) : 10;
+    this.minUpdateInterval = process.env.MINIMUM_TIME_TO_SEND_NOTIFICATION_IN_SECONDS ? parseInt(process.env.MINIMUM_TIME_TO_SEND_NOTIFICATION_IN_SECONDS) : 3600;
     this.sqliteDbPath = process.env.SQLITE_FILE_PATH || 'sqlite://database.sqlite';
     this.discordToken = process.env.DISCORD_TOKEN || '';
     this.channelId = process.env.DISCORD_CHANNEL_ID || '';
